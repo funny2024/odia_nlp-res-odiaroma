@@ -1,0 +1,175 @@
+#!/usr/bin/perl
+# Description: Odia Romanization Script
+# By: Shantpriya Parida
+#
+# Usage: ./odiaroman --dont < filename
+# Ex   : ./odiaroman --dont < bible_daniel_enod_paste.txt 
+
+use strict;
+use utf8;
+use Getopt::Long;
+
+binmode(STDIN, ":utf8");
+binmode(STDOUT, ":utf8");
+binmode(STDERR, ":utf8");
+
+my $escape_char = "_";
+my $inverse = 0;
+my $digits_latin = 0; # collapse devanagari and latin digits into latin
+my $dont_mark_originals = 0; # don't add _ before untransliterated tokens
+GetOptions(
+  "inverse" => \$inverse,
+  "digits-latin" => \$digits_latin,
+  "dont-mark-originals" => \$dont_mark_originals,
+) or exit 1;
+
+my @unmapped = split //, "/- ,?:()[]!@#\%\$^&*+\\<>.~\"'";
+
+my @map = (
+	"ˇ", "0B01", # ORIYA SIGN CANDRABINDU;Mn;0;NSM;;;;;N;;;;;	ˇ	 	
+	"ñ", "0B02", #ORIYA SIGN ANUSVARA;Mc;0;L;;;;;N;;;;;		˜		 			
+	"ï", "0B03", #ORIYA SIGN VISARGA;Mc;0;L;;;;;N;;;;;		¨
+	"A", "0B05", #ORIYA LETTER A;Lo;0;L;;;;;N;;;;;			A
+	"Ā", "0B06", #ORIYA LETTER AA;Lo;0;L;;;;;N;;;;;			Ā
+	"i", "0B07", #ORIYA LETTER I;Lo;0;L;;;;;N;;;;;			i
+	"Ī", "0B08", #ORIYA LETTER II;Lo;0;L;;;;;N;;;;;			Ī
+	"u", "0B09", #ORIYA LETTER U;Lo;0;L;;;;;N;;;;;			u
+	"Ū", "0B0A", #ORIYA LETTER UU;Lo;0;L;;;;;N;;;;;			Ū
+	"ŗ", "0B0B", #ORIYA LETTER VOCALIC R;Lo;0;L;;;;;N;;;;;		ŗ
+	"ļ", "0B0C", #ORIYA LETTER VOCALIC L;Lo;0;L;;;;;N;;;;;		ļ
+	"E", "0B0F", #ORIYA LETTER E;Lo;0;L;;;;;N;;;;;			E
+	"Ą", "0B10", #ORIYA LETTER AI;Lo;0;L;;;;;N;;;;;			Ą
+	"O", "0B13", #ORIYA LETTER O;Lo;0;L;;;;;N;;;;;			O
+	"æ", "0B14", #ORIYA LETTER AU;Lo;0;L;;;;;N;;;;;			æ
+	"k", "0B15", #ORIYA LETTER KA;Lo;0;L;;;;;N;;;;;			k
+	"ķ", "0B16", #ORIYA LETTER KHA;Lo;0;L;;;;;N;;;;;		ķ
+	"g", "0B17", #ORIYA LETTER GA;Lo;0;L;;;;;N;;;;;			g
+	"Ģ", "0B18", #ORIYA LETTER GHA;Lo;0;L;;;;;N;;;;;		Ģ
+	"ņ", "0B19", #ORIYA LETTER NGA;Lo;0;L;;;;;N;;;;;		ņ
+	"c", "0B1A", #ORIYA LETTER CA;Lo;0;L;;;;;N;;;;;			c
+	"ç", "0B1B", #ORIYA LETTER CHA;Lo;0;L;;;;;N;;;;;		ç
+	"j", "0B1C", #ORIYA LETTER JA;Lo;0;L;;;;;N;;;;;			j
+	"ĳ", "0B1D", #ORIYA LETTER JHA;Lo;0;L;;;;;N;;;;;		ĳ
+	"ŋ", "0B1E", #ORIYA LETTER NYA;Lo;0;L;;;;;N;;;;;		ŋ
+	"T", "0B1F", #ORIYA LETTER TTA;Lo;0;L;;;;;N;;;;;		T
+	"Ŧ", "0B20", #ORIYA LETTER TTHA;Lo;0;L;;;;;N;;;;;		Ŧ
+	"D", "0B21", #ORIYA LETTER DDA;Lo;0;L;;;;;N;;;;;		D
+	"Ð", "0B22", #ORIYA LETTER DDHA;Lo;0;L;;;;;N;;;;;		Ð
+	"N", "0B23", #ORIYA LETTER NNA;Lo;0;L;;;;;N;;;;;		N
+	"t", "0B24", #ORIYA LETTER TA;Lo;0;L;;;;;N;;;;;			t
+	"ŧ", "0B25", #ORIYA LETTER THA;Lo;0;L;;;;;N;;;;;		ŧ
+	"d", "0B26", #ORIYA LETTER DA;Lo;0;L;;;;;N;;;;;			d
+	"đ", "0B27", #ORIYA LETTER DHA;Lo;0;L;;;;;N;;;;;		đ
+	"n", "0B28", #ORIYA LETTER NA;Lo;0;L;;;;;N;;;;;			n
+	"p", "0B2A", #ORIYA LETTER PA;Lo;0;L;;;;;N;;;;;			p
+	"ṗ", "0B2B", #ORIYA LETTER PHA;Lo;0;L;;;;;N;;;;;		ṗ
+	"b", "0B2C", #ORIYA LETTER BA;Lo;0;L;;;;;N;;;;;			b
+	"þ", "0B2D", #ORIYA LETTER BHA;Lo;0;L;;;;;N;;;;;		þ
+	"m", "0B2E", #ORIYA LETTER MA;Lo;0;L;;;;;N;;;;;			m
+	"y", "0B2F", #ORIYA LETTER YA;Lo;0;L;;;;;N;;;;;			y
+	"r", "0B30", #ORIYA LETTER RA;Lo;0;L;;;;;N;;;;;			r
+	"l", "0B32", #ORIYA LETTER LA;Lo;0;L;;;;;N;;;;;			l
+	"L", "0B33", #ORIYA LETTER LLA;Lo;0;L;;;;;N;;;;;		L
+	"v", "0B35", #ORIYA LETTER VA;Lo;0;L;;;;;N;;;;;			v
+	"ş", "0B36", #ORIYA LETTER SHA;Lo;0;L;;;;;N;;;;;		ş
+	"S", "0B37", #ORIYA LETTER SSA;Lo;0;L;;;;;N;;;;;		S
+	"s", "0B38", #ORIYA LETTER SA;Lo;0;L;;;;;N;;;;;			s
+	"h", "0B39", #ORIYA LETTER HA;Lo;0;L;;;;;N;;;;;			h
+	"ų", "0B3C", #ORIYA SIGN NUKTA;Mn;7;NSM;;;;;N;;;;;		͵
+	"ģ", "0B3D", #ORIYA SIGN AVAGRAHA;Lo;0;L;;;;;N;;;;;		‚
+	"à", "0B3E", #ORIYA VOWEL SIGN AA;Mc;0;L;;;;;N;;;;;		à
+	"ì", "0B3F", #ORIYA VOWEL SIGN I;Mn;0;NSM;;;;;N;;;;;		ì
+	"Į", "0B40", #ORIYA VOWEL SIGN II;Mc;0;L;;;;;N;;;;;		Į
+	"ù", "0B41", #ORIYA VOWEL SIGN U;Mn;0;NSM;;;;;N;;;;;		ù
+	"Ù", "0B42", #ORIYA VOWEL SIGN UU;Mn;0;NSM;;;;;N;;;;;		Ù
+	"ř", "0B43", #;ORIYA VOWEL SIGN VOCALIC R;Mn;0;NSM;;;;;N;;;;;	ř
+	"Ř", "0B44", #ORIYA VOWEL SIGN VOCALIC RR;Mn;0;NSM;;;;;N;;;;;	Ř
+	"È", "0B47", #ORIYA VOWEL SIGN E;Mc;0;L;;;;;N;;;;;		È
+	"ą", "0B48", #ORIYA VOWEL SIGN AI;Mc;0;L;0B47 0B56;;;;N;;;;;	ą
+	"Ò", "0B4B", #ORIYA VOWEL SIGN O;Mc;0;L;0B47 0B3E;;;;N;;;;;	Ò
+	"ã", "0B4C", #ORIYA VOWEL SIGN AU;Mc;0;L;0B47 0B57;;;;N;;;;;	ã
+	"ĩ", "0B4D", #ORIYA SIGN VIRAMA;Mn;9;NSM;;;;;N;;;;;		’
+	"İ", "0B56", #ORIYA AI LENGTH MARK;Mn;0;NSM;;;;;N;;;;;		İ
+	"â", "0B57", #ORIYA AU LENGTH MARK;Mc;0;L;;;;;N;;;;;		â
+	"R", "0B5C", #ORIYA LETTER RRA;Lo;0;L;0B21 0B3C;;;;N;;;;;	R
+	"ŕ", "0B5D", #ORIYA LETTER RHA;Lo;0;L;0B22 0B3C;;;;N;;;;;	ŕ
+	"Y", "0B5F", #ORIYA LETTER YYA;Lo;0;L;;;;;N;;;;;		Y
+	"Ŗ", "0B60", #ORIYA LETTER VOCALIC RR;Lo;0;L;;;;;N;;;;;		Ŗ
+	"Ļ", "0B61", #ORIYA LETTER VOCALIC LL;Lo;0;L;;;;;N;;;;;		Ļ
+	"ł", "0B62", #ORIYA VOWEL SIGN VOCALIC L;Mn;0;NSM;;;;;N;;;;;	ł
+	"Ł", "0B63", #ORIYA VOWEL SIGN VOCALIC LL;Mn;0;NSM;;;;;N;;;;;	Ł
+	"0", "0B66", #ORIYA DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;		0
+	"1", "0B67", #ORIYA DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;		1
+	"2", "0B68", #ORIYA DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;		2
+	"3", "0B69", #ORIYA DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;		3
+	"4", "0B6A", #ORIYA DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;		4
+	"5", "0B6B", #ORIYA DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;		5
+	"6", "0B6C", #ORIYA DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;		6
+	"7", "0B6D", #ORIYA DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;		7
+	"8", "0B6E", #ORIYA DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;		8
+	"9", "0B6F", #ORIYA DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;		9
+	"ġ", "0B70", #ORIYA ISSHAR;So;0;L;;;;;N;;;;;			ġ
+	"B", "0B71", #ORIYA LETTER WA;Lo;0;L;;;;;N;;;;;			B
+);
+
+# check the map
+my %seen;
+foreach my $v (@map) {
+  die "Can't use our escape char '$escape_char' in the mapping."
+    if $v eq $escape_char;
+  die "Ambiguous: '$v'" if $seen{$v};
+  $seen{$v} = 1;
+}
+foreach my $v (@unmapped) {
+  die "Confict between mapped an unmapped: '$v'" if $seen{$v};
+}
+
+my %map = @map;
+my %unmapped = map { ($_, 1) } @unmapped;
+if ($digits_latin) {
+  foreach my $d (qw(0 1 2 3 4 5 6 7 8 9)) {
+    $unmapped{$d} = 1;
+  }
+}
+
+my %usemap;
+foreach my $k (keys %map) {
+  my $hex = $map{$k};
+  if ($inverse) {
+    $usemap{$k} = chr(hex($hex));
+  } else {
+    $usemap{chr(hex($hex))} = $k;
+  }
+}
+
+sub map_char {
+  my $c = shift;
+  # my $o = ord($c);
+  # print $o, " ($c)\n";
+  return $c if $unmapped{$c};
+  return $usemap{$c} if defined $usemap{$c};
+  return $c if $dont_mark_originals;
+  return "$escape_char$c";
+}
+
+sub inverse_map_char {
+  my $c = shift;
+  return $1 if $c =~ /^$escape_char(.)$/o;
+  # my $o = ord($c);
+  # print $o, " ($c)\n";
+  return $c if $unmapped{$c};
+  return $usemap{$c} if defined $usemap{$c};
+  return $c;
+}
+
+while (<>) {
+  chomp;
+  # print mymap($_);
+  if ($inverse) {
+    s/($escape_char?.)/inverse_map_char($1)/ge;
+  } else {
+    s/(.)/map_char($1)/ge;
+  }
+  print;
+  print "\n";
+}
